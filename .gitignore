@@ -1,3 +1,4 @@
 target/
-.cargo/
-Cargo.lock
+# NOTE: do NOT ignore .cargo/ -- .cargo/config.toml holds the cross-compile
+# target, the linker script flag and the probe-rs runner. Without it committed,
+# a fresh clone builds an empty binary and cannot be flashed.

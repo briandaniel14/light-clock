@@ -1,0 +1,21 @@
+# Without this file `cargo build` produces an ELF containing *no code at all*
+# (text=0, entry=0x0) and `cargo run` tries to build a host binary. Both of the
+# settings below are required; neither has a usable default.
+
+[build]
+# Always cross-compile for the Cortex-M0 core. Without it `cargo run` targets
+# x86_64 and there is nothing to flash.
+target = "thumbv6m-none-eabi"
+
+[target.thumbv6m-none-eabi]
+# `probe-rs` speaks SWD to the ST-Link and does the actual flashing.
+# If probe-rs doesn't know this chip name, run `probe-rs chip list | grep -i
+# stm32f051` and substitute whatever it prints.
+runner = "probe-rs run --chip STM32F051C6Tx"
+
+rustflags = [
+  # cortex-m-rt ships the linker script that places the vector table at
+  # 0x08000000 and sets the entry symbol. Without `-Tlink.x` the linker finds
+  # no entry point, garbage-collects every section, and emits an empty binary.
+  "-C", "link-arg=-Tlink.x",
+]

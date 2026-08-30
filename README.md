@@ -11,9 +11,11 @@ board with no datasheet to hand.
 ## What this does
 
 - `src/main.rs` — flashes 8 LEDs together, on 300ms / off 300ms. It's
-  wired to guess pins **PC0–PC7**, because that's the single most common
-  layout on these "STM32 core board + 8 LED / 5 button IO board" kits. It
-  may just work first try.
+  wired to guess pins **PB0–PB7**. That's a guess, but a guess constrained
+  by the package: the "C" in STM32F051**C**6 means LQFP48, which only bonds
+  out PA0–PA15, PB0–PB15, PC13–PC15 and PF0/PF1. PC0–PC7 exist on the die
+  (the HAL will hand them to you) but reach no pin on a 48-pin part, so
+  driving them silently does nothing.
 - `examples/scanner.rs` — if the guess is wrong (nothing lights up, or the
   wrong things light up), this sweeps through nearly every GPIO pin one at
   a time, 400ms on / 100ms off, so you can watch the board and work out
@@ -40,9 +42,22 @@ cargo run --release            # builds + flashes + runs src/main.rs
 cargo run --release --example scanner   # builds + flashes + runs the pin scanner
 ```
 
-`.cargo/config.toml` is set up to flash automatically via
-`probe-rs run --chip STM32F051C6Tx` whenever you `cargo run`. If probe-rs
-doesn't recognize that exact chip name, run:
+`.cargo/config.toml` does three things, all of them required: it sets the
+cross-compile target (`thumbv6m-none-eabi`), passes `-C link-arg=-Tlink.x`
+so cortex-m-rt's linker script places the vector table at 0x08000000, and
+sets the runner to `probe-rs run --chip STM32F051C6Tx` so `cargo run`
+flashes. **Do not gitignore `.cargo/`** — without that file the build
+succeeds but emits an ELF with no code in it at all, and there is nothing
+to flash. Sanity-check any suspicious build with:
+
+```sh
+size target/thumbv6m-none-eabi/release/light-clock
+```
+
+`text` must be non-zero (~1KB for this firmware). If it reads 0, the linker
+script isn't being applied.
+
+If probe-rs doesn't recognize that exact chip name, run:
 
 ```sh
 probe-rs chip list | grep -i stm32f051
@@ -50,20 +65,24 @@ probe-rs chip list | grep -i stm32f051
 
 and swap in whatever it prints, in `.cargo/config.toml`.
 
-## If the LEDs don't light up on PC0-PC7
+## If the LEDs don't light up on PB0-PB7
 
 1. Look at the PCB silkscreen right next to the LEDs and the header pins —
    many of these boards print the pin name (e.g. "PA5") right by each one.
 2. Run the scanner (`cargo run --release --example scanner`) and watch the
-   board. Whichever LED lights up, and when, tells you the real pin —
-   count position in the sweep (or time it: roughly one pin every 0.5s)
-   against the ordered list in the comment at the top of `scanner.rs`.
-3. Ask your friend if a schematic or the board's product page/model number
+   board. Each sweep opens with a marker — every pin on for 1s, then all
+   off for 1s — after which pins are driven one at a time, roughly two per
+   second. Count from the marker; the numbered list at the top of
+   `scanner.rs` maps each count to its pin.
+3. If instead the whole board lights up and one LED goes *dark* as the
+   sweep passes it, the LEDs are wired active-low. Set `ACTIVE_LOW = true`
+   in both `src/main.rs` and `examples/scanner.rs` and reflash.
+4. Ask your friend if a schematic or the board's product page/model number
    came with it — searching that model number usually turns up a pinout.
-4. Worst case, a multimeter in continuity mode between an LED's pad and
+5. Worst case, a multimeter in continuity mode between an LED's pad and
    each header pin will find it directly.
 
-Once you know the real pins, edit `src/main.rs` (swap e.g. `gpioc.pc0` for
+Once you know the real pins, edit `src/main.rs` (swap e.g. `gpiob.pb0` for
 whatever port/number you found) and reflash.
 
 ## Notes

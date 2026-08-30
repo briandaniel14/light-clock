@@ -1,14 +1,21 @@
 //! Flashes the 8 onboard LEDs like a red alarm light.
 //!
-//! PIN GUESS: this targets PC0..PC7, because that's the single most common
-//! wiring for these "STM32 core board + 8 LED / 5 button IO board" kits.
-//! If nothing lights up, don't worry -- it means your board wires the LEDs
-//! somewhere else. Run the pin scanner instead:
+//! PIN GUESS: this targets PB0..PB7. It is still only a guess -- but note that
+//! it *must* be a guess among pins that physically exist on this package. The
+//! "C" in STM32F051**C**6 means LQFP48, which bonds out only:
 //!
-//!     cargo run --example scanner
+//!     PA0..PA15, PB0..PB15, PC13, PC14, PC15, PF0, PF1
 //!
-//! ...watch which pin(s) light an LED, then edit the pin names below
-//! (e.g. swap `gpioc.pc0` for `gpiob.pb0`) to match your board.
+//! PC0..PC7 exist on the silicon (and the HAL happily hands them to you,
+//! because the HAL is per-die, not per-package) but they are not connected to
+//! any pin on a 48-pin part. Driving them compiles, flashes and runs, and does
+//! nothing observable -- so don't use them as a guess.
+//!
+//! If nothing lights up, run the pin scanner:
+//!
+//!     cargo run --release --example scanner
+//!
+//! ...watch which pin(s) light an LED, then edit the pin list below to match.
 #![no_main]
 #![no_std]
 
@@ -20,6 +27,10 @@ use stm32f0xx_hal as hal;
 use cortex_m::peripheral::Peripherals as CorePeripherals;
 use cortex_m_rt::entry;
 
+/// Set to `true` if the LEDs are wired anode-to-3V3, cathode-to-pin (very
+/// common on these kit IO boards), which makes them light on a LOW output.
+const ACTIVE_LOW: bool = false;
+
 #[entry]
 fn main() -> ! {
     let mut p = pac::Peripherals::take().unwrap();
@@ -27,45 +38,43 @@ fn main() -> ! {
 
     let mut rcc = p.RCC.configure().sysclk(8.mhz()).freeze(&mut p.FLASH);
 
-    let gpioc = p.GPIOC.split(&mut rcc);
+    let gpiob = p.GPIOB.split(&mut rcc);
 
-    // Configure PC0..PC7 as push-pull outputs, all at once inside one
-    // critical section (that's what into_push_pull_output() requires here).
-    let (mut l0, mut l1, mut l2, mut l3, mut l4, mut l5, mut l6, mut l7) =
-        cortex_m::interrupt::free(|cs| {
-            (
-                gpioc.pc7.into_push_pull_output(cs),
-                gpioc.pc6.into_push_pull_output(cs),
-                gpioc.pc5.into_push_pull_output(cs),
-                gpioc.pc4.into_push_pull_output(cs),
-                gpioc.pc3.into_push_pull_output(cs),
-                gpioc.pc2.into_push_pull_output(cs),
-                gpioc.pc1.into_push_pull_output(cs),
-                gpioc.pc0.into_push_pull_output(cs),
-            )
-        });
+    // Configure the 8 LED pins as push-pull outputs inside one critical
+    // section (that's what into_push_pull_output() requires here), then erase
+    // their types so they can live in one array.
+    let mut leds = cortex_m::interrupt::free(|cs| {
+        [
+            gpiob.pb0.into_push_pull_output(cs).downgrade(),
+            gpiob.pb1.into_push_pull_output(cs).downgrade(),
+            gpiob.pb2.into_push_pull_output(cs).downgrade(),
+            gpiob.pb3.into_push_pull_output(cs).downgrade(),
+            gpiob.pb4.into_push_pull_output(cs).downgrade(),
+            gpiob.pb5.into_push_pull_output(cs).downgrade(),
+            gpiob.pb6.into_push_pull_output(cs).downgrade(),
+            gpiob.pb7.into_push_pull_output(cs).downgrade(),
+        ]
+    });
 
     let mut delay = Delay::new(cp.SYST, &rcc);
 
     loop {
-        l0.set_high().ok();
-        l1.set_high().ok();
-        l2.set_high().ok();
-        l3.set_high().ok();
-        l4.set_high().ok();
-        l5.set_high().ok();
-        l6.set_high().ok();
-        l7.set_high().ok();
+        for led in leds.iter_mut() {
+            if ACTIVE_LOW {
+                led.set_low().ok();
+            } else {
+                led.set_high().ok();
+            }
+        }
         delay.delay_ms(300_u16);
 
-        l0.set_low().ok();
-        l1.set_low().ok();
-        l2.set_low().ok();
-        l3.set_low().ok();
-        l4.set_low().ok();
-        l5.set_low().ok();
-        l6.set_low().ok();
-        l7.set_low().ok();
+        for led in leds.iter_mut() {
+            if ACTIVE_LOW {
+                led.set_high().ok();
+            } else {
+                led.set_low().ok();
+            }
+        }
         delay.delay_ms(300_u16);
     }
 }
