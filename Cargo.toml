@@ -1,0 +1,18 @@
+[package]
+name = "light-clock"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[dependencies]
+cortex-m = "0.7"
+cortex-m-rt = "0.7"
+panic-halt = "0.2.0"
+# "stm32f051" covers the whole F051 sub-family (includes your F051C6).
+stm32f0xx-hal = { version = "0.18", features = ["stm32f051"] }
+
+[profile.release]
+opt-level = "s"   # optimize for size -- flash is only 32KB on this chip
+lto = true
+debug = true       # keeps debug symbols for probe-rs/gdb; doesn't bloat the flashed binary
+codegen-units = 1
