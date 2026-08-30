@@ -1,10 +1,12 @@
-# sunlight-clock-blinky
+# sunlight-clock
 
 Rust "flashing red lights" firmware for an STM32F051C6 board — a first step
 towards the sunlight alarm clock project. Flashes the 8 onboard LEDs like a
 red alarm light, plus a diagnostic tool for finding out exactly which pin
 each LED (and button) is wired to, since this looks like an unbranded/kit
 board with no datasheet to hand.
+
+    +-o STM32 STLink@03100000  <class IOUSBHostDevice, id 0x10000287b, registered, matched, active, busy 0 (11 ms), retain 22>
 
 ## What this does
 
