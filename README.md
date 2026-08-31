@@ -87,7 +87,10 @@ whatever port/number you found) and reflash.
 
 ## CI
 
-`.github/workflows/ci.yml` runs on every push and pull request:
+`.github/workflows/ci.yml` runs on pushes to `main`, on every pull request,
+and on demand from the Actions tab. Note that pushes to a *feature* branch
+don't trigger it on their own — it's the open pull request that does, via
+the `synchronize` event.
 
 - **firmware** — builds `main.rs` and the scanner for `thumbv6m-none-eabi`,
   then runs `ci/check-firmware.sh`, which asserts the ELF is actually
