@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+# A newer push supersedes an in-flight run on the same branch.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  firmware:
+    name: Build and verify firmware
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          rustup show
+          rustup target add thumbv6m-none-eabi
+
+      - uses: Swatinem/rust-cache@v2
+
+      # --bins --examples, not --all-targets: this is a no_std crate, so
+      # --all-targets pulls in a test harness that cannot build ("can't find
+      # crate for `test`") and fails for reasons unrelated to the firmware.
+      - name: Build
+        run: cargo build --release --bins --examples
+
+      # The check that matters. A build can succeed and still produce an ELF
+      # with no code in it; only this step notices.
+      - name: Verify firmware is flashable
+        run: |
+          ./ci/check-firmware.sh \
+            target/thumbv6m-none-eabi/release/light-clock \
+            target/thumbv6m-none-eabi/release/examples/scanner
+
+  lint:
+    name: Format and clippy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          rustup show
+          rustup target add thumbv6m-none-eabi
+          rustup component add rustfmt clippy
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Format
+        run: cargo fmt --all -- --check
+
+      - name: Clippy
+        run: cargo clippy --release --bins --examples -- -D warnings

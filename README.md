@@ -85,6 +85,33 @@ and swap in whatever it prints, in `.cargo/config.toml`.
 Once you know the real pins, edit `src/main.rs` (swap e.g. `gpiob.pb0` for
 whatever port/number you found) and reflash.
 
+## CI
+
+`.github/workflows/ci.yml` runs on every push and pull request:
+
+- **firmware** — builds `main.rs` and the scanner for `thumbv6m-none-eabi`,
+  then runs `ci/check-firmware.sh`, which asserts the ELF is actually
+  flashable: entry point set, `.vector_table` present at 0x08000000,
+  non-empty `.text`, and the image fitting in 32K flash / 8K RAM.
+- **lint** — `cargo fmt --check` and `cargo clippy -D warnings`.
+
+The firmware check is the one worth having. `cargo build` exits 0 even when
+the linker script isn't applied and the output contains no code at all —
+that failure mode is what broke flashing here in the first place, and only
+this step notices it. Run it yourself any time:
+
+```sh
+cargo build --release --bins --examples
+./ci/check-firmware.sh \
+  target/thumbv6m-none-eabi/release/light-clock \
+  target/thumbv6m-none-eabi/release/examples/scanner
+```
+
+Note both cargo commands use `--bins --examples` rather than
+`--all-targets`. This is a `no_std` crate, so `--all-targets` tries to build
+a test harness that can't exist here and fails with ``can't find crate for
+`test` ``.
+
 ## Notes
 
 - Targets the STM32F051C6 specifically: 32KB flash / 8KB RAM (`memory.x`),

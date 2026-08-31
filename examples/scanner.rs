@@ -123,10 +123,10 @@ fn main() -> ! {
         delay.delay_ms(1000_u16);
 
         // Sweep: one pin at a time, 400ms on / 100ms all-off.
-        for i in 0..pins.len() {
-            drive(&mut pins[i], true);
+        for pin in pins.iter_mut() {
+            drive(pin, true);
             delay.delay_ms(400_u16);
-            drive(&mut pins[i], false);
+            drive(pin, false);
             delay.delay_ms(100_u16);
         }
     }
