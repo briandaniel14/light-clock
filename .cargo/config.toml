@@ -11,6 +11,10 @@ target = "thumbv6m-none-eabi"
 # `probe-rs` speaks SWD to the ST-Link and does the actual flashing.
 # If probe-rs doesn't know this chip name, run `probe-rs chip list | grep -i
 # stm32f051` and substitute whatever it prints.
+#
+# On a `JtagGetIdcodeError` the probe never reached the chip -- see the
+# troubleshooting section in README.md. If wiring NRST and adding
+# `--connect-under-reset` is what makes it connect, append that flag here.
 runner = "probe-rs run --chip STM32F051C6Tx"
 
 rustflags = [

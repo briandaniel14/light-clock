@@ -65,6 +65,53 @@ probe-rs chip list | grep -i stm32f051
 
 and swap in whatever it prints, in `.cargo/config.toml`.
 
+## If probe-rs can't connect (`JtagGetIdcodeError`)
+
+```
+WARN probe_rs::probe::stlink: send_jtag_command 242 failed: JtagGetIdcodeError
+Error: Connecting to the chip was unsuccessful.
+```
+
+This is **not** a firmware problem. The ST-Link was found over USB, it drove
+the SWD lines, and nothing answered with an IDCODE — so the debug port never
+came up. Nothing in this repo has run on the chip yet at that point, so
+rebuilding or changing the code cannot affect it. Work through these in
+order:
+
+1. **Wire 3V3 to the ST-Link, even if the board is powered elsewhere.** On a
+   genuine ST-Link/V2 the 3.3V pin is a *reference* input for the level
+   shifters (VAPP), not a supply. Leave it unconnected and the probe cannot
+   drive SWDIO at all — this exact error. Four wires minimum:
+   SWDIO, SWCLK, GND, 3V3.
+2. **Check GND is actually common** and that SWDIO/SWCLK aren't swapped.
+   Swapped is the second most common cause of this error.
+3. **Confirm the probe itself is alive:**
+
+   ```sh
+   probe-rs list          # ST-Link should appear here
+   probe-rs info          # talks raw SWD; prints the DP/AP IDs on success
+   ```
+
+   `probe-rs info` needs no `--chip` and no working firmware. If `list`
+   shows the probe but `info` fails, the problem is on the four wires
+   above, not in software.
+4. **Try connecting under reset.** Needs NRST wired to the probe's RESET
+   pin as a fifth wire. This holds the core in reset while attaching, which
+   gets past a target that's in a low-power mode or stuck in lockup:
+
+   ```sh
+   probe-rs run --chip STM32F051C6Tx --connect-under-reset \
+     target/thumbv6m-none-eabi/release/light-clock
+   ```
+
+   If that works, add `--connect-under-reset` to the `runner` line in
+   `.cargo/config.toml` so plain `cargo run` uses it.
+5. **Update ST-Link clone firmware.** Cheap V2 clones often ship with old
+   firmware that probe-rs can't drive. ST's `STLinkUpgrade` utility
+   reflashes them.
+6. **Check BOOT0.** If a jumper or the silkscreen offers BOOT0, make sure
+   it's tied low so the chip runs from flash.
+
 ## If the LEDs don't light up on PB0-PB7
 
 1. Look at the PCB silkscreen right next to the LEDs and the header pins —
