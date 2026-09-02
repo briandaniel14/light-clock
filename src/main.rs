@@ -1,8 +1,11 @@
 //! Flashes the 8 onboard LEDs like a red alarm light.
 //!
-//! PIN GUESS: this targets PB0..PB7. It is still only a guess -- but note that
-//! it *must* be a guess among pins that physically exist on this package. The
-//! "C" in STM32F051**C**6 means LQFP48, which bonds out only:
+//! Targets PB0..PB7. This is no longer a guess: the board is the UCT
+//! STM32F051C6 development board (Barracuda Holdings), whose silkscreen labels
+//! the eight red LEDs D0..D7 as PB0..PB7.
+//!
+//! Any pin choice here must in any case be a pin that physically exists on this
+//! package. The "C" in STM32F051**C**6 means LQFP48, which bonds out only:
 //!
 //!     PA0..PA15, PB0..PB15, PC13, PC14, PC15, PF0, PF1
 //!
@@ -11,7 +14,8 @@
 //! any pin on a 48-pin part. Driving them compiles, flashes and runs, and does
 //! nothing observable -- so don't use them as a guess.
 //!
-//! If nothing lights up, run the pin scanner:
+//! If nothing lights up, check the LED jumpers (JP2, P2) are in their
+//! silkscreened default positions, then run the pin scanner:
 //!
 //!     cargo run --release --example scanner
 //!

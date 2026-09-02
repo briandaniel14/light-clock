@@ -65,6 +65,33 @@ probe-rs chip list | grep -i stm32f051
 
 and swap in whatever it prints, in `.cargo/config.toml`.
 
+## The board
+
+This is the **UCT STM32F051C6 development board** (manufactured by Barracuda
+Holdings, Western Cape). Identified from the silkscreen and the
+`ADM1602K-NSA-FBS` 2-line LCD. Useful confirmed facts:
+
+- The eight red LEDs **D0..D7 are PB0..PB7** — the silkscreen labels each one.
+  `src/main.rs` is correct as written.
+- The MCU sits on a **plug-in daughtercard**, not soldered to the main board.
+  Its header runs in physical LQFP48 pin order, so SWD is at:
+
+  ```
+  ... PB4 PB3 PA15 PA14 PF7 PF6 PA13 PA12 ...
+                   ^^^^         ^^^^
+                   SWCLK        SWDIO
+  ```
+
+  Note PF7/PF6 sit *between* PA14 and PA13 — miscounting by two lands on an
+  F-port pin and SWD silently fails.
+- GND and 3V3 are on the P1 header along the top edge
+  (`GND PA7 PA11 3V3 5V PA8`).
+- Jumper defaults are printed on the silkscreen: JP1 `(1-2);(3-4)`,
+  JP2 `ON`, P2 `(7-8);(9-10)`.
+
+Related community resources: [STM32F0-Utilities](https://github.com/jonahswain/STM32F0-Utilities)
+and [uct-stm32-dev-board-guides](https://github.com/ngakana/uct-stm32-dev-board-guides).
+
 ## If probe-rs can't connect (`JtagGetIdcodeError`)
 
 ```
@@ -109,8 +136,16 @@ order:
 5. **Update ST-Link clone firmware.** Cheap V2 clones often ship with old
    firmware that probe-rs can't drive. ST's `STLinkUpgrade` utility
    reflashes them.
-6. **Check BOOT0.** If a jumper or the silkscreen offers BOOT0, make sure
-   it's tied low so the chip runs from flash.
+6. **Check BOOT0.** The daughtercard header has a `BOOT` pin; make sure it's
+   tied low so the chip runs from flash.
+7. **Reseat the MCU daughtercard.** The STM32 is on a removable module. If it
+   isn't fully and squarely seated in its socket, SWD reaches nothing — and
+   the board's power LED still lights, so it looks fine.
+
+To find out whether the ST-Link is a separate dongle or built onto the board,
+unplug everything and run `probe-rs list`, then plug in only the board's USB-B
+and run it again. If a probe appears only on the second run, the programmer is
+on the board and there is no SWD wiring for you to do.
 
 ## If the LEDs don't light up on PB0-PB7
 
